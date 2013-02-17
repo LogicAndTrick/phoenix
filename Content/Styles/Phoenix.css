@@ -1,0 +1,46 @@
+#phoenix_debug
+{
+
+}
+
+#phoenix_debug table
+{
+    margin: 20px auto;
+    border-collapse: collapse;
+    border: 1px solid #aaa;
+    width: 95%;
+}
+
+#phoenix_debug table th
+{
+    background-color: #444;
+    color: #eee;
+    font-weight: bold;
+    border: 1px solid #aaa;
+    padding: 5px;
+    text-align: center;
+}
+
+#phoenix_debug table td
+{
+    background-color: #bbb;
+    border: 1px solid #aaa;
+    padding: 5px;
+}
+
+.validation-summary, .validation-error {
+    color: red;
+}
+
+.validation-error-field {
+    border: 1px solid red;
+    background-color: #ffe4e4;
+}
+
+input.openid-input {
+    background-image: url("../Images/OpenID.png");
+    background-position: 0 50%;
+    background-repeat: no-repeat;
+    border: 1px solid lightgray;
+    padding-left: 18px;
+}
