@@ -47,7 +47,16 @@ class Authentication
     public static $openid_host = null;
     public static $emailrequired = true;
     public static $emailconfirmation = false;
-    
+
+    public static $ban_enabled = false;
+    public static $ban_model = 'Ban';
+    public static $ban_field_userid = 'UserID';
+    public static $ban_field_ip = 'IP';
+    public static $ban_field_time = 'Time';
+    public static $ban_field_text = 'Text';
+    public static $ban_action = 'Index';
+    public static $ban_controller = 'Banned';
+
     public static $_enabled = false;
     public static $_hasher;
     public static $_extractor;
@@ -139,6 +148,7 @@ class Authentication
                     setcookie(Authentication::$cookie_id,   $user->{Authentication::$field_id},     time() + Authentication::$cookie_timeout, Phoenix::$base_url);
                     setcookie(Authentication::$cookie_code, $user->{Authentication::$field_cookie}, time() + Authentication::$cookie_timeout, Phoenix::$base_url);
                 }
+                $_SESSION[Authentication::$session_id.'_LastLogin'] = $user->{Authentication::$field_lastaccess};
                 $user->{Authentication::$field_numlogins}++;
                 $user->{Authentication::$field_lastlogin} = date("Y-m-d H:i:s");
                 $user->{Authentication::$field_ip} = $_SERVER['REMOTE_ADDR'];
@@ -186,6 +196,7 @@ class Authentication
                     setcookie(Authentication::$cookie_id,   $user->{Authentication::$field_id},     time() + Authentication::$cookie_timeout, Phoenix::$base_url);
                     setcookie(Authentication::$cookie_code, $user->{Authentication::$field_cookie}, time() + Authentication::$cookie_timeout, Phoenix::$base_url);
                 }
+                $_SESSION[Authentication::$session_id.'_LastLogin'] = $user->{Authentication::$field_lastaccess};
                 $user->{Authentication::$field_numlogins}++;
                 $user->{Authentication::$field_lastlogin} = date("Y-m-d H:i:s");
                 $user->{Authentication::$field_ip} = $_SERVER['REMOTE_ADDR'];
@@ -238,6 +249,11 @@ class Authentication
             && Authentication::$autologin == true;
     }
 
+    static function GetLastLoginTime() {
+        if (!Authentication::IsLoggedIn() || !isset($_SESSION[Authentication::$session_id.'_LastLogin'])) return null;
+        return $_SESSION[Authentication::$session_id.'_LastLogin'];
+    }
+
     static function LoginCurrentUser()
     {
         $user = null;
@@ -283,6 +299,10 @@ class Authentication
                 setcookie($cookiecode, '', time() - 1, Phoenix::$base_url);
             } else {
                 $_SESSION[$session] = $user->$idfield;
+                $_SESSION[Authentication::$session_id.'_LastLogin'] = $user->{Authentication::$field_lastaccess};
+                $user->{Authentication::$field_numlogins}++;
+                $user->{Authentication::$field_lastlogin} = date("Y-m-d H:i:s");
+                $user->{Authentication::$field_ip} = $_SERVER['REMOTE_ADDR'];
                 $updateinfo = true;
             }
         }
@@ -532,6 +552,83 @@ class Authentication
             $cookie = Authentication::HashPassword($cookie . '~Phoenix_Cookie$'.$i.'_=_=_=_'.mt_rand(0, 500000));
         }
         return $cookie;
+    }
+
+    static function IsCurrentUserBanned() {
+        $ipadd = $_SERVER['REMOTE_ADDR'];
+        if (Authentication::IsIpBanned($ipadd)) return true;
+        if (Authentication::IsLoggedIn() && Authentication::IsUserBanned(Authentication::GetUserID())) return true;
+        return false;
+    }
+
+    static function BanUser($id, $untiltime, $text = '', $ban_by_ip = true) {
+        $ban = new Authentication::$ban_model;
+        $ban->{Authentication::$ban_field_userid} = $id;
+        $ban->{Authentication::$ban_field_ip} = '';
+        if ($ban_by_ip) {
+            $user = Query::Create(Authentication::$model)
+                    ->Where(Authentication::$field_id, '=', $id)
+                    ->One();
+            if ($user->{Authentication::$field_id} !== null) {
+                $ban->{Authentication::$ban_field_ip} = $user->{Authentication::$field_ip};
+            }
+        }
+        $ban->{Authentication::$ban_field_text} = $text;
+        $ban->{Authentication::$ban_field_time} = $untiltime;
+        $ban->Save();
+    }
+
+    static function BanIp($ip, $untiltime, $text = '') {
+        $ban = new Authentication::$ban_model;
+        $ban->{Authentication::$ban_field_userid} = 0;
+        $ban->{Authentication::$ban_field_ip} = $ip;
+        $ban->{Authentication::$ban_field_text} = $text;
+        $ban->{Authentication::$ban_field_time} = $untiltime;
+        $ban->Save();
+    }
+
+    static function UnbanUser($id) {
+        foreach (Authentication::GetActiveBansForUser($id) as $ban) {
+            $ban->Delete();
+        }
+    }
+
+    static function UnbanIp($ip) {
+        foreach (Authentication::GetActiveBansForIp($ip) as $ban) {
+            $ban->Delete();
+        }
+    }
+
+    static function IsUserBanned($id) {
+        if (!Authentication::$ban_enabled || Authentication::$ban_field_userid === null) return false;
+        return Query::Create(Authentication::$ban_model)
+            ->Where(Authentication::$ban_field_userid, '=', $id)
+            ->Where(Authentication::$ban_field_time, '>', date("Y-m-d H:i:s"))
+            ->Count() > 0;
+    }
+
+    static function IsIpBanned($ip) {
+        if (!Authentication::$ban_enabled || Authentication::$ban_field_ip === null) return false;
+        return Query::Create(Authentication::$ban_model)
+            ->Where(Authentication::$ban_field_ip, '=', $ip)
+            ->Where(Authentication::$ban_field_time, '>', date("Y-m-d H:i:s"))
+            ->All();
+    }
+
+    static function GetActiveBansForUser($id) {
+        if (!Authentication::$ban_enabled || Authentication::$ban_field_userid === null) return array();
+        return Query::Create(Authentication::$ban_model)
+            ->Where(Authentication::$ban_field_userid, '=', $id)
+            ->Where(Authentication::$ban_field_time, '>', date("Y-m-d H:i:s"))
+            ->All();
+    }
+
+    static function GetActiveBansForIp($ip) {
+        if (!Authentication::$ban_enabled || Authentication::$ban_field_ip === null) return array();
+        return Query::Create(Authentication::$ban_model)
+            ->Where(Authentication::$ban_field_ip, '=', $ip)
+            ->Where(Authentication::$ban_field_time, '>', date("Y-m-d H:i:s"))
+            ->Count() > 0;
     }
 }
 

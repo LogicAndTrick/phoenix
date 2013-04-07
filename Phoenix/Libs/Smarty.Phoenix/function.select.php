@@ -86,13 +86,13 @@ function smarty_function_select($params, $template)
         foreach ($params['items'] as $item) {
             $selected = $params['all_selected'] || array_search($item->{$params['valuefield']}, $selected_vals) !== false;
             $val = htmlspecialchars($item->{$params['valuefield']});
-            $select .= '<input type="checkbox" ' .
+            $select .=  '<label class="checkbox" for="' . $htmlattr['id'] . '_' . $val . '">' .
+                        '<input type="checkbox" ' .
                         'name="' . htmlspecialchars($htmlattr['name']) . '" ' .
                         'value="' . $val . '" ' .
                         'id="' . $htmlattr['id'] . '_' . $val . '"' .
                         ($selected ? ' checked="checked"' : '') .
                         '/>' . $params['label_separator'] .
-                       '<label for="' . $htmlattr['id'] . '_' . $val . '">' .
                          htmlspecialchars($item->{$params['textfield']}) .
                        '</label>' .
                        $params['multiple_separator'] . "\n";

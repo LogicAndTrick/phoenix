@@ -8,7 +8,8 @@ function smarty_function_radio($params, $template)
         'value' => null,
         'text' => $params['for'],
         'label_space' => ' ',
-        'model' => null
+        'model' => null,
+        'label_html_class' => 'radio'
     );
     $params = array_merge($defaults, $params);
     $htmlattr = array();
@@ -40,20 +41,20 @@ function smarty_function_radio($params, $template)
             $htmlattr[str_ireplace('_', '-', substr($key, 5))] = $value;
         }
     }
+
+    $field = '<label';
+
+    foreach ($lhtmlattr as $key => $value) {
+        $field .= ' '.$key.'="'.htmlspecialchars($value).'"';
+    }
     
-    $field = '<input';
+    $field .= '><input';
 
     foreach ($htmlattr as $key => $value) {
         $field .= ' '.$key.'="'.$value.'"';
     }
 
-    $field .= ' />' . $params['label_space'] . '<label';
-
-    foreach ($lhtmlattr as $key => $value) {
-        $field .= ' '.$key.'="'.htmlspecialchars($value).'"';
-    }
-
-    $field .= '>'.$params['text'].'</label>';
+    $field .= ' />' . $params['label_space'] . $params['text'] . '</label>';
 
     return $field;
 }

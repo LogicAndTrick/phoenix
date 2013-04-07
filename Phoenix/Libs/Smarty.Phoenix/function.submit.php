@@ -3,11 +3,15 @@
 function smarty_function_submit($params, $template)
 {
     $defaults = array(
-        'html_value' => isset($params['value']) ? $params['value'] : 'Submit',
+        'text' => isset($params['value']) ? $params['value'] : 'Submit',
         'html_type' => 'submit',
-        'disabled' => false
+        'disabled' => false,
+        'html_value' => null,
+        'button' => false
     );
     $params = array_merge($defaults, $params);
+
+    if ($params['html_value'] == null) $params['html_value'] = $params['text'];
 
     $htmlattr = array();
 
@@ -21,13 +25,29 @@ function smarty_function_submit($params, $template)
         }
     }
 
-    $field = '<input';
+    $field = '';
 
-    foreach ($htmlattr as $key => $value) {
-        $field .= ' '.$key.'="'.htmlspecialchars($value).'"';
+    if ($params['button'])
+    {
+        $field .= '<button';
+
+        foreach ($htmlattr as $key => $value) {
+            if ($key == 'value') continue;
+            $field .= ' '.$key.'="'.htmlspecialchars($value).'"';
+        }
+
+        $field .= '>' . $htmlattr['value'] . '</button>';
     }
+    else
+    {
+        $field .= '<input';
 
-    $field .= ' />';
+        foreach ($htmlattr as $key => $value) {
+            $field .= ' '.$key.'="'.htmlspecialchars($value).'"';
+        }
+
+        $field .= ' />';
+    }
 
     return $field;
 }

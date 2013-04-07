@@ -24,6 +24,23 @@ class ContentResult extends ActionResult
     }
 }
 
+class JsonResult extends ActionResult
+{
+
+    public $obj;
+
+    function  __construct($obj)
+    {
+        $this->obj = $obj;
+    }
+
+    function Execute()
+    {
+        header('Content-Type: application/json');
+        echo json_encode($this->obj);
+    }
+}
+
 class RedirectToActionResult extends ActionResult
 {
     public $action;

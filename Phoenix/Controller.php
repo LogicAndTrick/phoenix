@@ -28,6 +28,18 @@ class Controller {
     }
 
     /**
+     * Return a result containing a serialised JSON object. The JSON will
+     * be echoed to the screen and the content-type will be set to application/json.
+     * @param string $obj
+     * @return JsonResult
+     */
+    function Json($obj)
+    {
+        $ar = new JsonResult($obj);
+        return $ar;
+    }
+
+    /**
      * Returns a result that redirects to an action in a controller.
      * @param string $action The action to redirect to
      * @param string $controller The controller to redirect to (null for the current controller)

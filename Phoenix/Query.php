@@ -205,6 +205,18 @@ class CustomQueryRow
     {
         $this->_values[$name] = $value;
     }
+
+    function ToArray($fields = array())
+    {
+        $vals = array();
+        foreach ($this->_values as $k => $v) {
+            if (is_int($k)) continue;
+            if (count($fields) == 0 || array_search($k, $fields) !== false) {
+                $vals[$k] = $v;
+            }
+        }
+        return $vals;
+    }
 }
 
 ?>

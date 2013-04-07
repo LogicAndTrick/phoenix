@@ -68,8 +68,8 @@ class Validation
         return array();
     }
 
-    static function Validate($model, $prefix = '') {
-        Validation::AddErrors($model->GetErrors(), $prefix);
+    static function Validate($model, $prefix = '', $fields = null) {
+        Validation::AddErrors($model->GetErrors($fields), $prefix);
         return !Validation::HasErrors();
     }
 

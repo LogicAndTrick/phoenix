@@ -203,7 +203,7 @@ class Model
                 }
             }
         }
-        return $errors;
+        return array_merge($errors, $this->Validate());
     }
 
     public function  __get($name) {
@@ -341,6 +341,17 @@ class Model
         $this->AfterDelete();
     }
 
+    public function ToArray($columns = array())
+    {
+        $result = array();
+        foreach ($this->_values as $d) {
+            if (count($columns) == 0 || array_search($d->GetName(), $columns) !== false) {
+                $result[$d->GetName()] = $d->Get();
+            }
+        }
+        return $result;
+    }
+
     protected function BeforeInsert()
     {
         // Virtual
@@ -369,6 +380,12 @@ class Model
     protected function AfterDelete()
     {
         // Virtual
+    }
+
+    protected function Validate()
+    {
+        // Virtual
+        return array();
     }
 
     // Static
