@@ -33,17 +33,17 @@ class Views
         
         $count = 0;
         
-        $dirs[$count++] = array('prepend' => $cd, 'search' => Phoenix::$app_dir.$vd.$cd);
+        $dirs[$count++] = array('prepend' => $cd, 'search' => Phoenix::$app_dir.$vd.$cd, 'err' => '[app]'.$vd.$cd);
         if (strstr($name, '/') !== false) {
-            $dirs[$count++] = array('prepend' => '', 'search' => Phoenix::$app_dir.$vd);
+            $dirs[$count++] = array('prepend' => '', 'search' => Phoenix::$app_dir.$vd, 'err' => '[app]'.$vd);
         }
-        $dirs[$count++] = array('prepend' => $sd, 'search' => Phoenix::$app_dir.$vd.$sd);
+        $dirs[$count++] = array('prepend' => $sd, 'search' => Phoenix::$app_dir.$vd.$sd, 'err' => '[app]'.$vd.$sd);
         
-        $dirs[$count++] = array('prepend' => $cd, 'search' => Phoenix::$phoenix_dir.$vd.$cd);
+        $dirs[$count++] = array('prepend' => $cd, 'search' => Phoenix::$phoenix_dir.$vd.$cd, 'err' => '[framework]'.$vd.$cd);
         if (strstr($name, '/') !== false) {
-            $dirs[$count++] = array('prepend' => '', 'search' => Phoenix::$phoenix_dir.$vd);
+            $dirs[$count++] = array('prepend' => '', 'search' => Phoenix::$phoenix_dir.$vd, 'err' => '[framework]'.$vd);
         }
-        $dirs[$count++] = array('prepend' => $sd, 'search' => Phoenix::$phoenix_dir.$vd.$sd);
+        $dirs[$count++] = array('prepend' => $sd, 'search' => Phoenix::$phoenix_dir.$vd.$sd, 'err' => '[framework]'.$vd.$sd);
         
         if (substr($name, 0, -4) != '.tpl') {
             $name .= '.tpl';
@@ -59,7 +59,7 @@ class Views
         $msg = "Unable to locate view for this request. The requested view was: $vname.\n";
         $msg .= "Directories searched:\n";
         foreach ($dirs as $dir) {
-           $msg .= "&nbsp;&nbsp;* {$dir}\n";
+           $msg .= "&nbsp;&nbsp;* {$dir['err']}\n";
         }
         throw new Exception($msg);
     }
