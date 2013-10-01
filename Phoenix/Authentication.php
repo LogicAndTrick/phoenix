@@ -344,12 +344,13 @@ class Authentication
         $emailpost = Authentication::$post_email;
         $passpost = Authentication::$post_password;
         $passpost2 = Authentication::$post_password_confirm;
+        $emailrequired = Authentication::$emailrequired;
 
         if (Authentication::$useopenid
             && isset($_SESSION['Phoenix_Temp_Authentication_Register'])
             && $_SESSION['Phoenix_Temp_Authentication_Register'] == 'openid'
             && isset($_SESSION['Phoenix_Temp_Authentication_Username'])
-            && isset($_SESSION['Phoenix_Temp_Authentication_Email']))
+            && (isset($_SESSION['Phoenix_Temp_Authentication_Email']) || !$emailrequired))
         {
             $_POST[$namepost] = $_SESSION['Phoenix_Temp_Authentication_Username'];
             $_POST[$emailpost] = $_SESSION['Phoenix_Temp_Authentication_Email'];
