@@ -9,16 +9,16 @@ class Templating
     static function Create()
     {
         $smarty = new Smarty();
-        $smarty->addTemplateDir(Phoenix::$app_dir.'/Views/');
-        $smarty->addTemplateDir(Phoenix::$phoenix_dir.'/Views/');
         $smarty->setConfigDir(Phoenix::$app_dir.'/Cache/Configs/');
         $smarty->setCompileDir(Phoenix::$app_dir.'/Cache/Compile/');
         $smarty->setCacheDir(Phoenix::$app_dir.'/Cache/Cache/');
-        $smarty->addPluginsDir(Phoenix::$phoenix_dir.'/Libs/Smarty.Phoenix');
-        if (is_dir(Phoenix::$app_dir.'/Plugins'))
-        {
-            $smarty->addPluginsDir(Phoenix::$app_dir.'/Plugins');
+
+        $c = count(Phoenix::$_layers);
+        for ($i = $c - 1; $i >= 0; $i--) {
+            if (is_dir(Phoenix::$_layers[$i].'/Views/')) $smarty->addTemplateDir(Phoenix::$_layers[$i].'/Views/');
+            if (is_dir(Phoenix::$_layers[$i].'/Plugins/')) $smarty->addPluginsDir(Phoenix::$_layers[$i].'/Plugins/');
         }
+
         $smarty->assign(Templating::$page_data);
         return $smarty;
     }

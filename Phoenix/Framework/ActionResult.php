@@ -1,5 +1,8 @@
 <?php
 
+/**
+ * Base class for all action results. Contains a single method: Execute()
+ */
 class ActionResult
 {
     function Execute()
@@ -8,6 +11,9 @@ class ActionResult
     }
 }
 
+/**
+ * Echos an object and completes execution.
+ */
 class ContentResult extends ActionResult
 {
 
@@ -24,6 +30,9 @@ class ContentResult extends ActionResult
     }
 }
 
+/**
+ * Echos an object as a JSON string and completes execution. Sets the Content-Type to application/json.
+ */
 class JsonResult extends ActionResult
 {
 
@@ -41,6 +50,9 @@ class JsonResult extends ActionResult
     }
 }
 
+/**
+ * Redirects to a controller action with a 302 redirect.
+ */
 class RedirectToActionResult extends ActionResult
 {
     public $action;
@@ -61,6 +73,9 @@ class RedirectToActionResult extends ActionResult
     }
 }
 
+/**
+ * Redirects to a route with a 302 redirect.
+ */
 class RedirectToRouteResult extends ActionResult
 {
     public $route;
@@ -77,6 +92,9 @@ class RedirectToRouteResult extends ActionResult
     }
 }
 
+/**
+ * Redirects to a url with a 302 redirect.
+ */
 class RedirectToUrlResult extends ActionResult
 {
     public $url;
@@ -93,6 +111,11 @@ class RedirectToUrlResult extends ActionResult
     }
 }
 
+/**
+ * The main action result. Uses templating to render a view in the master page.
+ * The view is passed a model and additional viewdata from the controller.
+ * Optionally, fetches the result from the cache.
+ */
 class ViewResult extends ActionResult
 {
     public $name;
@@ -122,6 +145,9 @@ class ViewResult extends ActionResult
     }
 }
 
+/**
+ * Same as the view result, but the result is rendered with no master page.
+ */
 class RenderResult extends ActionResult
 {
     public $view;
@@ -141,74 +167,6 @@ class RenderResult extends ActionResult
         Templating::SetPageData($this->viewdata);
         $view = Templating::Create();
         $view->display($this->view);
-    }
-}
-
-class ViewHierarchyResult extends ActionResult
-{
-    public $hierarchy;
-    public $viewdata;
-
-    function __construct($hierarchy, $viewdata)
-    {
-        $this->hierarchy = $hierarchy;
-        $this->viewdata = $viewdata;
-    }
-
-    /**
-     * Process a view hierachy and return the resulting content string
-     * @param array $tree
-     * @return string The content string
-     */
-    private function ProcessHierachy($tree)
-    {
-        $view = Templating::Create();
-        $tname = Views::Find($tree[':view']);
-        foreach ($tree as $name => $params) {
-            if ($name == ':view') {
-                continue;
-            } else if (is_array($params) && array_key_exists(':view', $params)) {
-                $view->assign($name, $this->ProcessHierachy($params));
-            } else {
-                $view->assign($name, $params);
-            }
-        }
-        return $view->fetch($tname);
-    }
-
-    function Execute()
-    {
-        foreach ($this->hierarchy as $name => $params) {
-            if (is_array($params) && array_key_exists(':view', $params)) {
-                Templating::$page_data[$name] = $this->ProcessHierachy($params);
-            } else {
-                Templating::$page_data[$name] = $params;
-            }
-        }
-        Templating::Render();
-    }
-}
-
-class MultiViewResult extends ActionResult
-{
-    public $ntvma;
-    public $viewdata;
-
-    function  __construct($name_to_view_model_array, $viewdata)
-    {
-        $this->ntvma = $name_to_view_model_array;
-        $this->viewdata = $viewdata;
-    }
-
-    function Execute()
-    {
-        Templating::SetPageData($this->viewdata);
-        foreach ($this->ntvma as $name => $view_model) {
-            Templating::SetPageData('model', $view_model['model']);
-            $view = Templating::Create();
-            Templating::$page_data[$name] = $view->fetch($view_model['view']);
-            Templating::Render();
-        }
     }
 }
 

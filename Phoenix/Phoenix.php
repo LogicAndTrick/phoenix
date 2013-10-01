@@ -10,27 +10,27 @@ include 'Libs/LightOpenID/LightOpenID.php';
 include 'Libs/Recaptcha/recaptchalib.php';
 
 // Phoenix
-include 'AutoLoad.php';
-include 'ExceptionHandler.php';
+include 'Framework/AutoLoad.php';
+include 'Framework/ExceptionHandler.php';
 
-include 'Database.php';
-include 'Model.php';
-include 'Query.php';
-include 'Validation.php';
+include 'Framework/Database.php';
+include 'Framework/Model.php';
+include 'Framework/Query.php';
+include 'Framework/Validation.php';
 
-include 'Post.php';
-include 'Authentication.php';
-include 'Authorisation.php';
+include 'Framework/Post.php';
+include 'Framework/Authentication.php';
+include 'Framework/Authorisation.php';
 
-include 'Router.php';
-include 'RouteParameters.php';
-include 'Hooks.php';
+include 'Framework/Router.php';
+include 'Framework/RouteParameters.php';
+include 'Framework/Hooks.php';
 
-include 'Controller.php';
-include 'ActionResult.php';
+include 'Framework/Controller.php';
+include 'Framework/ActionResult.php';
 
-include 'Views.php';
-include 'Templating.php';
+include 'Framework/Views.php';
+include 'Framework/Templating.php';
 
 class Phoenix {
     /**
@@ -98,6 +98,12 @@ class Phoenix {
     static $error_action = 'Index';
 
     /**
+     * The registered layers in the application
+     * @var array
+     */
+    static $_layers = array();
+
+    /**
      * Initialise the framework. Called internally, do not use.
      */
     static function Init()
@@ -107,6 +113,17 @@ class Phoenix {
         Phoenix::$debug = false;
         Phoenix::$_dblog = new MemoryLogger();
         Database::AddLogger(Phoenix::$_dblog);
+        Phoenix::AddLayer(Phoenix::$phoenix_dir . DS . 'Layers' . DS . 'Core');
+    }
+
+    /**
+     * Add a layer to the runtime.
+     * @param $path string The file path of the layer to add.
+     */
+    static function AddLayer($path)
+    {
+        if (array_search($path, Phoenix::$_layers) !== false) return;
+        Phoenix::$_layers[] = $path;
     }
 
     /**
@@ -114,6 +131,8 @@ class Phoenix {
      */
     static function Run()
     {
+        Phoenix::AddLayer(Phoenix::$app_dir);
+
         $route = array_key_exists('phoenix_route', $_GET) ? $_GET['phoenix_route'] : '';
         Hooks::ExecuteRouteHooks($route);
 
