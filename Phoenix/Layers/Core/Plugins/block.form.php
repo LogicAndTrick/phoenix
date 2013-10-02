@@ -4,9 +4,9 @@ function smarty_block_form($params, $content, $template, &$repeat)
 {
     if ($repeat) // First call, opening tag, $content = NULL
     {
-        $con = Router::$request_controller;
-        $act = Router::$request_action;
-        $pms = Router::$request_params;
+        $con = Phoenix::$request->controller;
+        $act = Phoenix::$request->action;
+        $pms = Phoenix::$request->params;
         $mtd = 'post';
         if (array_key_exists('controller', $params)) {
             $con = $params['controller'];

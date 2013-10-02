@@ -5,7 +5,7 @@ function smarty_function_actlink($params, $template)
     $defaults = array(
         'text' => 'Link',
         'action' => null,
-        'controller' => Phoenix::$request->controller_name,
+        'controller' => Phoenix::$request->controller,
         'img' => null,
         'alt' => null,
         'url' => null

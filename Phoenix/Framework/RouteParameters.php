@@ -10,30 +10,30 @@ class RouteParameters {
      * @var string
      */
     public $route;
-    
-    /**
-     * The controller
-     * @var Controller
-     */
-    public $controller;
 
     /**
      * The name of the controller
      * @var string
      */
-    public $controller_name;
+    public $controller;
     
     /**
-     * The action as a function name in the controller
+     * The action as passed into the route
      * @var string
      */
     public $action;
 
     /**
-     * The action as passed into the route
+     * The controller instance
+     * @var Controller
+     */
+    public $controller_instance;
+
+    /**
+     * The action as a function name in the controller
      * @var string
      */
-    public $action_name;
+    public $action_function;
     
     /**
      * The parameters
@@ -43,21 +43,26 @@ class RouteParameters {
 
     function Execute()
     {
+        $class = $this->controller . 'Controller';
+        $this->controller_instance = new $class;
+
         $action = $this->action;
         if (Post::IsPostBack()) {
-            if (method_exists($this->controller, $action.'_Post')) {
+            if (method_exists($this->controller_instance, $action.'_Post')) {
                 $action = $action.'_Post';
             }
         }
-        $this->controller->BeforeExecute();
-        $result = call_user_func_array(array($this->controller, $action), $this->params);
-        $this->controller->AfterExecute();
+        $this->action_function = $action;
+
+        $this->controller_instance->BeforeExecute();
+        $result = call_user_func_array(array($this->controller_instance, $action), $this->params);
+        $this->controller_instance->AfterExecute();
         return $result;
     }
 
     function GetRouteString()
     {
-        return trim($this->action_name . '/' . $this->controller_name . '/' . implode('/', $this->params), '/');
+        return trim($this->controller . '/' . $this->action . '/' . implode('/', $this->params), '/');
     }
 }
 

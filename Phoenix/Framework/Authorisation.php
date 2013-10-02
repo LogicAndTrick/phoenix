@@ -36,13 +36,14 @@ class Authorisation
     /**
      * Check a resolved route to see if the current user has permission to access it
      * @param RouteParameters $request
+     * @return boolean
      */
     static function Check($request)
     {
         return Authorisation::$_method->HasPermission(
             Authentication::GetUser(),
-            $request == null ? null : $request->controller,
-            $request == null ? null : $request->action_name
+            $request == null ? null : $request->controller_instance,
+            $request == null ? null : $request->action
         );
     }
 
@@ -50,6 +51,7 @@ class Authorisation
      * Returns true if the current user can access the specified controller and action
      * @param  $controller string The controller name
      * @param  $action string The action name
+     * @return boolean
      */
     static function CanAccess($controller, $action = null)
     {
@@ -98,10 +100,21 @@ class AuthorisationMethod
         }
     }
 
+    /**
+     * @param $user
+     * @param $controller
+     * @param $action
+     * @return boolean
+     */
     function HasPermission($user, $controller, $action) {
         // Virtual
     }
 
+    /**
+     * @param $user
+     * @param $cred
+     * @return boolean
+     */
     function HasCredentials($user, $cred) {
         // Virtual; Implementation varies depending on auth method
     }

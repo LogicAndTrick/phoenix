@@ -34,7 +34,7 @@ function smarty_function_paginate($params, $template)
     }
     if ($params['format_url'] == null) {
         if (!is_array($params['format_params'])) $params['format_params'] = array($params['format_params']);
-        $params['format_url'] = Router::CreateUrl(Phoenix::$request->controller_name, Phoenix::$request->action, $params['format_params']);
+        $params['format_url'] = Router::CreateUrl(Phoenix::$request->controller, Phoenix::$request->action, $params['format_params']);
     }
 
     // These vars can be defined in the viewdata

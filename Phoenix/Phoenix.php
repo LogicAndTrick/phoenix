@@ -113,17 +113,17 @@ class Phoenix {
         Phoenix::$debug = false;
         Phoenix::$_dblog = new MemoryLogger();
         Database::AddLogger(Phoenix::$_dblog);
-        Phoenix::AddLayer(Phoenix::$phoenix_dir . DS . 'Layers' . DS . 'Core');
+        Phoenix::AddLayer('Framework', Phoenix::$phoenix_dir . DS . 'Layers' . DS . 'Core');
     }
 
     /**
      * Add a layer to the runtime.
      * @param $path string The file path of the layer to add.
      */
-    static function AddLayer($path)
+    static function AddLayer($name, $path)
     {
         if (array_search($path, Phoenix::$_layers) !== false) return;
-        Phoenix::$_layers[] = $path;
+        Phoenix::$_layers[] = array('name' => $name, 'dir' => $path);
     }
 
     /**
@@ -131,7 +131,7 @@ class Phoenix {
      */
     static function Run()
     {
-        Phoenix::AddLayer(Phoenix::$app_dir);
+        Phoenix::AddLayer('App', Phoenix::$app_dir);
 
         $route = array_key_exists('phoenix_route', $_GET) ? $_GET['phoenix_route'] : '';
         Hooks::ExecuteRouteHooks($route);

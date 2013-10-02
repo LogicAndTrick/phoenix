@@ -15,8 +15,8 @@ class Templating
 
         $c = count(Phoenix::$_layers);
         for ($i = $c - 1; $i >= 0; $i--) {
-            if (is_dir(Phoenix::$_layers[$i].'/Views/')) $smarty->addTemplateDir(Phoenix::$_layers[$i].'/Views/');
-            if (is_dir(Phoenix::$_layers[$i].'/Plugins/')) $smarty->addPluginsDir(Phoenix::$_layers[$i].'/Plugins/');
+            if (is_dir(Phoenix::$_layers[$i]['dir'].'/Views/')) $smarty->addTemplateDir(Phoenix::$_layers[$i]['dir'].'/Views/');
+            if (is_dir(Phoenix::$_layers[$i]['dir'].'/Plugins/')) $smarty->addPluginsDir(Phoenix::$_layers[$i]['dir'].'/Plugins/');
         }
 
         $smarty->assign(Templating::$page_data);
@@ -45,8 +45,8 @@ class Templating
      * Sets the default page data before the request has been executed.
      */
     static function SetDefaults($request) {
-        Templating::$page_data['page_title'] = $request == null ? '' : $request->controller_name . ' > ' . $request->action;
-        Templating::$page_data['request_controller'] = $request == null ? '' : $request->controller_name;
+        Templating::$page_data['page_title'] = $request == null ? '' : $request->controller . ' > ' . $request->action;
+        Templating::$page_data['request_controller'] = $request == null ? '' : $request->controller;
         Templating::$page_data['request_action'] = $request == null ? '' : $request->action;
         Templating::$page_data['request_params'] = $request == null ? '' : $request->params;
     }

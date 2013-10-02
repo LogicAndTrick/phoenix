@@ -7,7 +7,7 @@ function smarty_function_master($params, $template)
     $params = array_merge($defaults, $params);
 
     $view = Templating::Create();
-    $view->assign(Phoenix::$request->controller->viewData);
+    $view->assign(Phoenix::$request->controller_instance->viewData);
     foreach ($params as $name => $value) {
         if ($name == 'view') {
             continue;

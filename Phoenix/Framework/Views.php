@@ -17,34 +17,33 @@ class Views
      * controller's directory to be searched. Will throw an exception if the
      * view cannot be found.
      * @param string $name The name of the view to find
+     * @throws Exception
      * @return string The full view location
      */
-    static function Find($vname)
+    static function Find($name)
     {
-        $name = $vname;
         if ($name == null || strlen($name) == 0) {
             $name = Phoenix::$request->action;
-            $vname = '[null]';
         }
         $dirs = array();
         $vd = '/Views/';
-        $cd = Phoenix::$request->controller_name.'/';
+        $cd = Phoenix::$request->controller.'/';
         $sd = 'Shared/';
         
         $count = 0;
-        
-        $dirs[$count++] = array('prepend' => $cd, 'search' => Phoenix::$app_dir.$vd.$cd, 'err' => '[app]'.$vd.$cd);
-        if (strstr($name, '/') !== false) {
-            $dirs[$count++] = array('prepend' => '', 'search' => Phoenix::$app_dir.$vd, 'err' => '[app]'.$vd);
+
+        $c = count(Phoenix::$_layers);
+        for ($i = $c - 1; $i >= 0; $i--) {
+            // Search the view subdirectory first
+            $dirs[$count++] = array('prepend' => $cd, 'search' => Phoenix::$_layers[$i]['dir'].$vd.$cd, 'err' => '['.Phoenix::$_layers[$i]['name'].']'.$vd.$cd);
+
+            // If there's a / in the view name, search the views parent directory
+            if (strstr($name, '/') !== false) $dirs[$count++] = array('prepend' => '', 'search' => Phoenix::$_layers[$i]['dir'].$vd, 'err' => '['.Phoenix::$_layers[$i]['name'].']'.$vd);
+
+            // Search the shared subdirectory last
+            $dirs[$count++] = array('prepend' => $sd, 'search' => Phoenix::$_layers[$i]['dir'].$vd.$sd, 'err' => '['.Phoenix::$_layers[$i]['name'].']'.$vd.$sd);
         }
-        $dirs[$count++] = array('prepend' => $sd, 'search' => Phoenix::$app_dir.$vd.$sd, 'err' => '[app]'.$vd.$sd);
-        
-        $dirs[$count++] = array('prepend' => $cd, 'search' => Phoenix::$phoenix_dir.$vd.$cd, 'err' => '[framework]'.$vd.$cd);
-        if (strstr($name, '/') !== false) {
-            $dirs[$count++] = array('prepend' => '', 'search' => Phoenix::$phoenix_dir.$vd, 'err' => '[framework]'.$vd);
-        }
-        $dirs[$count++] = array('prepend' => $sd, 'search' => Phoenix::$phoenix_dir.$vd.$sd, 'err' => '[framework]'.$vd.$sd);
-        
+
         if (substr($name, 0, -4) != '.tpl') {
             $name .= '.tpl';
         }
@@ -56,7 +55,8 @@ class Views
                 return $prep.$name;
             }
         }
-        $msg = "Unable to locate view for this request. The requested view was: $vname.\n";
+
+        $msg = "Unable to locate view for this request. The requested view was: $name.\n";
         $msg .= "Directories searched:\n";
         foreach ($dirs as $dir) {
            $msg .= "&nbsp;&nbsp;* {$dir['err']}\n";

@@ -75,19 +75,16 @@ class CheckErrorsRequestHook extends Hook {
         $error = null;
         if ($request == null) {
             Phoenix::$request = new RouteParameters();
-            $error = array(Router::$_error);
+            $error = array("Page not found.");
         }
         if (Authentication::IsCurrentUserBanned())
         {
-            if (Phoenix::$request->controller_name != Authentication::$ban_controller
-                || Phoenix::$request->action_name != Authentication::$ban_action)
+            if (Phoenix::$request->controller != Authentication::$ban_controller
+                || Phoenix::$request->action != Authentication::$ban_action)
             {
-                $cname = Authentication::$ban_controller . 'Controller';
                 Phoenix::$request->action = Authentication::$ban_action;
-                Phoenix::$request->action_name = Authentication::$ban_action;
-                Phoenix::$request->controller_name = Authentication::$ban_controller;
+                Phoenix::$request->controller = Authentication::$ban_controller;
                 Phoenix::$request->params = array();
-                Phoenix::$request->controller = new $cname();
                 return;
             }
         }
@@ -95,12 +92,9 @@ class CheckErrorsRequestHook extends Hook {
             $error = array("You do not have permission to access this page.");
         }
         if ($error != null) {
-            $cname = Phoenix::$error_controller . 'Controller';
             Phoenix::$request->action = Phoenix::$error_action;
-            Phoenix::$request->action_name = Phoenix::$error_action;
-            Phoenix::$request->controller_name = Phoenix::$error_controller;
+            Phoenix::$request->controller = Phoenix::$error_controller;
             Phoenix::$request->params = $error;
-            Phoenix::$request->controller = new $cname();
         }
     }
 }

@@ -4,7 +4,7 @@ function smarty_function_action($params, $template)
 {
     $defaults = array(
         'action' => null,
-        'controller' => Phoenix::$request->controller_name
+        'controller' => Phoenix::$request->controller
     );
     $params = array_merge($defaults, $params);
 

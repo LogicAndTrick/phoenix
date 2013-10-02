@@ -5,13 +5,9 @@ class Router {
     static $default_controller = 'Home';
     static $default_action = 'Index';
 
-    static $request_route = '/';
-    static $request_controller = '';
-    static $request_action = '';
-    static $request_params = array();
-
-    static $_error = null;
-
+    /**
+     * @var array
+     */
     static $_registered = array();
 
     public static function RegisterCustomRouter($router)
@@ -19,16 +15,20 @@ class Router {
         Router::$_registered[] = $router;
     }
 
+    public static function Clear()
+    {
+        Router::$_registered = array();
+    }
+
+    public static function MapRoute($map, $defaults = array(), $options = array())
+    {
+        $dr = DefaultRouter::Create($map, $defaults, $options);
+        Router::RegisterCustomRouter($dr);
+    }
+
     public static function ControllerExists($controller)
     {
         return class_exists($controller, true);
-    }
-
-    public static function ActionExists($controller, $action)
-    {
-        if (!Router::ControllerExists($controller)) return null;
-        $c = new $controller;
-        return Router::GetActionName($c, $action) != null;
     }
 
     protected static function GetActionName($controller, $action)
@@ -58,115 +58,19 @@ class Router {
         return $method->getNumberOfRequiredParameters();
     }
 
-    static function CreateUrl($controller, $action, $params = array())
+    public static function CreateUrl($controller, $action, $params = array())
     {
         $url = Phoenix::$base_url.$controller;
+        if ($action === null && count($params) > 0) $action = Router::$default_action;
         if ($action !== null) $url .= '/' . $action;
+        if (!is_array($params)) $params = array($params);
         foreach ($params as $key => $value) {
             $url .= '/'.$value;
         }
         return $url;
     }
 
-    static function Redirect($controller = null, $action = null, $params = array())
-    {
-        if ($controller == null) {
-            $controller = Router::$request_controller;
-            $action = Router::$request_action;
-            $params = Router::$request_params;
-        } else if ($action == null) {
-            $action = Router::$default_action;
-            $params = array();
-        }
-        $url = Router::CreateUrl($controller, $action, $params);
-        header("Location: $url");
-    }
-
-    public function CanResolve($route)
-    {
-        return true;
-    }
-
     /**
-     * @param  $route
-     * @return RouteParameters
-     */
-    public function ResolveRoute($route)
-    {
-        $replaced = str_replace('\\', '/', $route);
-        $trimmed = trim($replaced, '/');
-
-        $ret = new RouteParameters();
-        $ret->route = $trimmed;
-        $con = Router::$default_controller;
-        $act = Router::$default_action;
-        $args = array();
-
-        $split = explode('/', $trimmed);
-        $count = count($split);
-        if ($trimmed == '') $count = 0;
-
-        // Getting the controller
-        if ($count > 0) {
-            $con = $split[0];
-        }
-
-        $control = $con.'Controller';
-
-        if (!Router::ControllerExists($control)) {
-            Router::$_error = "Controller not found: $con.";
-            return null;
-        }
-
-        $ret->controller = new $control;
-        $ret->controller_name = substr(get_class($ret->controller), 0, -strlen('Controller'));
-
-        // Getting the action
-        if ($count > 1) {
-            $act = $split[1];
-        }
-
-        $action = Router::GetActionName($ret->controller, $act);
-
-        if ($action == null) {
-            Router::$_error = "Action not found: $act.";
-            return null;
-        }
-
-        $ret->action_name = preg_replace('/^(.*)_Post$/i', '\1', $action);
-        $ret->action = $action;
-
-        // Getting the args
-        if ($count > 2) {
-            $args = array_slice($split, 2);
-        }
-
-        $num_params = Router::GetActionParams($ret->controller, $ret->action);
-        if ($num_params > count($args)) {
-            Router::$_error = "Not enough parameters: Required $num_params, got " . count($args) . ".";
-            return null;
-        }
-
-        $ret->params = $args;
-
-        return $ret;
-    }
-
-    /**
-     * Gets a controller instance for a specified route. The route format
-     * is assumed to be: /Controller/Action/Param1/Param2/...<br />
-     * The following routes are permitted:<br />
-     * <ul>
-     *   <li>Empty string (uses defaults)</li>
-     *   <li>/ (uses defaults)</li>
-     *   <li>/Controller/ (uses default action)</li>
-     *   <li>/Controller/Action/ (no params)</li>
-     *   <li>/Controller/Action/Param1/... (any number of params)</li>
-     * </ul>
-     * The only time a controller or action can be omitted is when
-     * there are no parameters. A route such as /Controller/Param1 will not
-     * work.
-     *
      * @param string $route The route to resolve
      * @return RouteParameters The resolved route
      */
@@ -178,29 +82,46 @@ class Router {
             if ($rtr->CanResolve($route))
             {
                 $rt = $rtr->ResolveRoute($route);
-                Router::SetRouteVars($rt);
+                Router::ValidateRoute($rt);
                 return $rt;
             }
         }
-        // Use default
-        $def = new Router();
-        $rt = $def->ResolveRoute($route);
-        Router::SetRouteVars($rt);
-        return $rt;
+        return null;
     }
 
-    protected static function SetRouteVars($route)
+    /**
+     * @param RouteParameters $route
+     * @return null
+     * @throws Exception
+     */
+    protected static function ValidateRoute($route)
     {
-        if ($route == null) return;
-        Router::$request_route = $route->route;
-        Router::$request_controller = $route->controller_name;
-        Router::$request_action = $route->action;
-        Router::$request_params = $route->params;
-    }
+        $controller = $route->controller.'Controller';
 
+        if (!Router::ControllerExists($controller)) {
+            throw new Exception("Controller not found: $controller.");
+        }
+
+        $name = Router::GetActionName($controller, $route->action);
+        if ($name == null) {
+            throw new Exception("Action not found: $controller::{$route->action}.");
+        }
+
+        $num_params = Router::GetActionParams($controller, $name);
+        if ($num_params > count($route->params)) {
+            throw new Exception("Not enough parameters: Required $num_params, got " . count($route->params) . ".");
+        }
+    }
 }
 
-class DefaultRouter extends Router
+// Router base class
+class AbstractRouter
+{
+    public function CanResolve($route) {}
+    public function ResolveRoute($route) {}
+}
+
+class DefaultRouter extends AbstractRouter
 {
     /**
      * @var string The router map
@@ -281,9 +202,24 @@ class DefaultRouter extends Router
         $params = $match['*params'];
         $catchall = $match['*'];
         if ($catchall != null) {
+            // Split the catchall
             $catchall = explode($this->options['catchall_separator'], $catchall);
-            // TODO if ($this->options[''])
+            // Rejoin if needed
+            if ($this->options['string_catchall'] || $this->options['string_params']) {
+                $catchall = array(implode($this->options['string_separator'], $catchall));
+            }
+            // Add to params
+            $params = array_merge($params, $catchall);
         }
+        if ($this->options['string_params']) {
+            $params = array(implode($this->options['string_separator'], $params));
+        }
+        $rp = new RouteParameters();
+        $rp->controller = $controller;
+        $rp->action = $action;
+        $rp->params = $params;
+        $rp->route = $route;
+        return $rp;
     }
 }
 
@@ -382,7 +318,7 @@ class DefaultRouterPattern
                 $name = $catchAll ? '*' : trim($text, '*');
 
                 // Create the regex pattern
-                $pattern = $catchAll ? "(.*)" : "([^".$exclude."]*)";
+                $pattern = $catchAll ? "(.+)" : "([^" . preg_quote($exclude) . "]+)";
 
                 // Assign the variables
                 $this->parts[$i]['name'] = $name;
@@ -401,6 +337,21 @@ class DefaultRouterPattern
             {
                 $this->parts[$i]['pattern'] = $text;
                 $this->parts[$i]['capturing'] = false;
+                // Last element is test? Make it capturing.
+                if ($i == $count - 1) {
+                    $this->parts[$i] = array(
+                        'type' => 'regex',
+                        'text' => '',
+                        'name' => '',
+                        'pattern' => $text,
+                        'capturing' => false,
+                        'catch-all' => false,
+                        'default' => $text,
+                        'optional' => true,
+                        'match' => true,
+                        'regex' => '%^' . preg_quote($text) . '$%'
+                    );
+                }
             }
         }
 
@@ -427,6 +378,21 @@ class DefaultRouterPattern
                 // Assemble a regex that can go straight into preg_match
                 $this->parts[$i]['regex'] = '%^' . $regex . '$%';
             }
+        }
+        // If everything is optional, we also want to match the empty route
+        if ($lastMandatory < 0) {
+            $this->parts[] = array(
+                'type' => 'regex',
+                'text' => '',
+                'name' => '',
+                'pattern' => '',
+                'capturing' => false,
+                'catch-all' => false,
+                'default' => '',
+                'optional' => true,
+                'match' => true,
+                'regex' => "%^$%"
+            );
         }
     }
 
@@ -463,9 +429,9 @@ class DefaultRouterPattern
         // All parameters aside from action, controller, and * go into *params (for ordering)
         // * always goes on the end so we're safe there.
         $result = array(
-            'controller' => '',
-            'action' => '',
-            '*' => null,
+            'controller' => array_key_exists('controller', $this->defaults) ? $this->defaults['controller'] : null,
+            'action' => array_key_exists('action', $this->defaults) ? $this->defaults['action'] : null,
+            '*' => array_key_exists('*', $this->defaults) ? $this->defaults['*'] : null, // Is default on * even valid? I guess so!
             '*params' => array()
         );
         $count = count($this->parts);

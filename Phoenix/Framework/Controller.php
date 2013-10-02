@@ -49,7 +49,7 @@ class Controller {
     function RedirectToAction($action, $controller = null, $params = array())
     {
         if ($controller == null) {
-            $controller = Phoenix::$request->controller_name;
+            $controller = Phoenix::$request->controller;
         }
         if (!is_array($params)) {
             $params = array($params);

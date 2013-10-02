@@ -16,7 +16,7 @@ function PhoenixTryLoadFile($filename)
 {
     $c = count(Phoenix::$_layers);
     for ($i = $c - 1; $i >= 0; $i--) {
-        $file = get_file_ci(rtrim(Phoenix::$_layers[$i], '/\\') . DS . ltrim($filename,'/\\'));
+        $file = get_file_ci(rtrim(Phoenix::$_layers[$i]['dir'], '/\\') . DS . ltrim($filename,'/\\'));
         if (file_exists($file)) {
             require_once $file;
             return true;
