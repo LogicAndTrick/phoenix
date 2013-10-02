@@ -5,14 +5,65 @@ include "../Framework/Router.php";
 
 class RouterTest extends PHPUnit_Framework_TestCase
 {
-    public function testDefaultRouterPattern()
+    public function testDefaultRouterPattern_Initialise()
     {
         $map = "{controller}/{action}/{*}";
         $pattern = new DefaultRouterPattern($map, array());
 
         $this->assertEquals("regex", $pattern->parts[0]['type']);
         $this->assertEquals("controller", $pattern->parts[0]['name']);
-        $this->assertEquals(false, $pattern->parts[0]['optional']);
+        $this->assertEquals(false, $pattern->parts[0]['match']);
+
+        $this->assertEquals("text", $pattern->parts[1]['type']);
+        $this->assertEquals("/", $pattern->parts[1]['text']);
+        $this->assertEquals(false, $pattern->parts[1]['match']);
+
+        $this->assertEquals("regex", $pattern->parts[2]['type']);
+        $this->assertEquals("action", $pattern->parts[2]['name']);
+        $this->assertEquals(true, $pattern->parts[2]['match']);
+
+        $this->assertEquals("text", $pattern->parts[3]['type']);
+        $this->assertEquals("/", $pattern->parts[3]['text']);
+        $this->assertEquals(false, $pattern->parts[3]['match']);
+
+        $this->assertEquals("regex", $pattern->parts[4]['type']);
+        $this->assertEquals("*", $pattern->parts[4]['name']);
+        $this->assertEquals(true, $pattern->parts[4]['match']);
+    }
+
+    public function testDefaultRouterPattern_Match()
+    {
+        $map = "{controller}/{action}/{*}";
+        $pattern = new DefaultRouterPattern($map, array());
+        $match = $pattern->Match("Home/Index/1/2/3");
+
+        $this->assertNotNull($match);
+        $this->assertEquals("Home", $match['controller']);
+        $this->assertEquals("Index", $match['action']);
+        $this->assertEquals("1/2/3", $match['*']);
+        $this->assertEquals(array(), $match['*params']);
+
+        $map = "{controller}/{*action}/{*id}/{*page}/{*}";
+        $pattern = new DefaultRouterPattern($map, array('action' => 'Index'));
+        $match = $pattern->Match("Home/Index/1/2/3");
+
+        $this->assertNotNull($match);
+        $this->assertEquals("Home", $match['controller']);
+        $this->assertEquals("Index", $match['action']);
+        $this->assertEquals("1", $match['id']);
+        $this->assertEquals("2", $match['page']);
+        $this->assertEquals("3", $match['*']);
+        $this->assertEquals(array("1", "2"), $match['*params']);
+
+        $match = $pattern->Match("Home");
+
+        $this->assertNotNull($match);
+        $this->assertEquals("Home", $match['controller']);
+        $this->assertEquals("Index", $match['action']);
+        $this->assertArrayNotHasKey('id', $match);
+        $this->assertArrayNotHasKey('page', $match);
+        $this->assertArrayNotHasKey('id', $match);
+        $this->assertEmpty($match['*params']);
     }
 
     private function match($map, $defaults, $options, $route, $controller, $action, $params)
