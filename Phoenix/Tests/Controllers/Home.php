@@ -12,6 +12,11 @@ class HomeController extends Controller
 
     }
 
+    function ShowView($model)
+    {
+        return $this->View($model);
+    }
+
     function PostOnly_Post($text = '')
     {
         return $this->Content($text);

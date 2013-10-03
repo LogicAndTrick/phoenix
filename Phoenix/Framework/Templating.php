@@ -2,12 +2,23 @@
 
 class Templating
 {
+
+    static function MakeDirs()
+    {
+        if (!file_exists(Phoenix::$app_dir.'/Cache/')) mkdir(Phoenix::$app_dir.'/Cache/');
+        if (!file_exists(Phoenix::$app_dir.'/Cache/Configs/')) mkdir(Phoenix::$app_dir.'/Cache/Configs/');
+        if (!file_exists(Phoenix::$app_dir.'/Cache/Compile/')) mkdir(Phoenix::$app_dir.'/Cache/Compile/');
+        if (!file_exists(Phoenix::$app_dir.'/Cache/Cache/')) mkdir(Phoenix::$app_dir.'/Cache/Cache/');
+    }
+
     /**
      * Create a Smarty instance with the required directories set up.
      * @return Smarty The created Smarty instance
      */
     static function Create()
     {
+        Templating::MakeDirs();
+
         $smarty = new Smarty();
         $smarty->setConfigDir(Phoenix::$app_dir.'/Cache/Configs/');
         $smarty->setCompileDir(Phoenix::$app_dir.'/Cache/Compile/');

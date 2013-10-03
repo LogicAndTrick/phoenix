@@ -12,6 +12,7 @@ include 'Libs/Recaptcha/recaptchalib.php';
 // Phoenix
 include 'Framework/AutoLoad.php';
 include 'Framework/ExceptionHandler.php';
+include 'Framework/Headers.php';
 
 include 'Framework/Database.php';
 include 'Framework/Model.php';

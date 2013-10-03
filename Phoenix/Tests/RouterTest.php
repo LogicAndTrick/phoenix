@@ -1,6 +1,6 @@
 <?php
 
-include "../Phoenix.php";
+require_once dirname(__FILE__)."/../Phoenix.php";
 Phoenix::AddLayer("Test", dirname(__FILE__));
 
 class RouterTest extends PHPUnit_Framework_TestCase
@@ -368,6 +368,18 @@ class RouterTest extends PHPUnit_Framework_TestCase
 
         $this->assertEquals("Home/Index/1/2", Router::CreateUrl("Home", null, array(1,2)));
         $this->assertEquals("Home/Index/1/2", Router::CreateUrl("Home", "Index", array(1,2)));
+
+        Phoenix::$base_url = 'Base';
+
+        $this->assertEquals("Base/Home", Router::CreateUrl("Home", null));
+        $this->assertEquals("Base/Home/Index", Router::CreateUrl("Home", "Index"));
+
+        $this->assertEquals("Base/Home/Index/1", Router::CreateUrl("Home", null, array(1)));
+        $this->assertEquals("Base/Home/Index/1", Router::CreateUrl("Home", "Index", array(1)));
+        $this->assertEquals("Base/Home/Index/1", Router::CreateUrl("Home", "Index", 1));
+
+        $this->assertEquals("Base/Home/Index/1/2", Router::CreateUrl("Home", null, array(1,2)));
+        $this->assertEquals("Base/Home/Index/1/2", Router::CreateUrl("Home", "Index", array(1,2)));
     }
 
     public function testNothingButRunAbstractFunctionsSoMyCodeCoverageIsBetter()

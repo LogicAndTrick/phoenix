@@ -45,7 +45,7 @@ class JsonResult extends ActionResult
 
     function Execute()
     {
-        header('Content-Type: application/json');
+        Headers::SetContentType('application/json');
         echo json_encode($this->obj);
     }
 }
@@ -68,8 +68,7 @@ class RedirectToActionResult extends ActionResult
     function Execute()
     {
         $url = Router::CreateUrl($this->controller, $this->action, $this->params);
-        header("Location: $url");
-        exit();
+        Headers::Redirect($url);
     }
 }
 
@@ -87,8 +86,7 @@ class RedirectToRouteResult extends ActionResult
     function Execute()
     {
         $url = trim(Phoenix::$base_url, '/') . '/' . trim($this->route, '/');
-        header("Location: $url");
-        exit();
+        Headers::Redirect($url);
     }
 }
 
@@ -106,8 +104,7 @@ class RedirectToUrlResult extends ActionResult
     function Execute()
     {
         $url = $this->url;
-        header("Location: $url");
-        exit();
+        Headers::Redirect($url);
     }
 }
 

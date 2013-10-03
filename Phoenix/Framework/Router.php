@@ -60,7 +60,7 @@ class Router {
 
     public static function CreateUrl($controller, $action, $params = array())
     {
-        $url = Phoenix::$base_url.$controller;
+        $url = trim(trim(Phoenix::$base_url, "/").'/'.$controller, '/');
         if ($action === null && count($params) > 0) $action = Router::$default_action;
         if ($action !== null) $url .= '/' . $action;
         if (!is_array($params)) $params = array($params);
