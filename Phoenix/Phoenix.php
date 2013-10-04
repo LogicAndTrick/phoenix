@@ -114,11 +114,12 @@ class Phoenix {
         Phoenix::$debug = false;
         Phoenix::$_dblog = new MemoryLogger();
         Database::AddLogger(Phoenix::$_dblog);
-        Phoenix::AddLayer('Framework', Phoenix::$phoenix_dir . DS . 'Layers' . DS . 'Core');
+        Phoenix::AddLayer('Framework', Phoenix::$phoenix_dir . DS . 'Base');
     }
 
     /**
      * Add a layer to the runtime.
+     * @param $name string The name of the layer
      * @param $path string The file path of the layer to add.
      */
     static function AddLayer($name, $path)
@@ -161,5 +162,3 @@ class Phoenix {
 // Init the framework before any variables are set, because
 // this sets some defaults.
 Phoenix::Init();
-
-?>

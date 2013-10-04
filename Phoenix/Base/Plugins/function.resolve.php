@@ -11,5 +11,3 @@ function smarty_function_resolve($params, $template)
 
     return rtrim(Phoenix::$base_url, '/') . '/' . ltrim($params['path'], '/');
 }
-
-?>

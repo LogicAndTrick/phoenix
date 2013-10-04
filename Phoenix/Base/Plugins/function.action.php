@@ -19,5 +19,3 @@ function smarty_function_action($params, $template)
     return str_ireplace('%2F', '/', rawurlencode($url));
 
 }
-
-?>

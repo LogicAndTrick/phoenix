@@ -64,5 +64,3 @@ class Views
         throw new Exception($msg);
     }
 }
-
-?>

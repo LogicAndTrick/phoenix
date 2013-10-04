@@ -738,5 +738,3 @@ class StandardAuthenticationDataExtractor extends AuthenticationDataExtractor
         return (is_array($user_arr) && count($user_arr) == 1) ? $user_arr[0] : null;
     }
 }
-
-?>

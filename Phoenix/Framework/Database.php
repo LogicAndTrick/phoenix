@@ -307,5 +307,3 @@ class EchoLogger extends DatabaseLogger
         echo '</div>';
     }
 }
-
-?>

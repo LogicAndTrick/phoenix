@@ -569,5 +569,3 @@ class DateTimeDataMapper extends ModelDataMapper
         return gmdate('Y-m-d H:i:s', strtotime($data));
     }
 }
-
-?>

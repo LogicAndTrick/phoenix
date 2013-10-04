@@ -8,5 +8,3 @@ class ErrorController extends Controller
         return $this->View($message);
     }
 }
-
-?>

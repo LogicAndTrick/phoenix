@@ -28,4 +28,3 @@ function PhoenixExceptionHandler($exception) {
 
 set_exception_handler('PhoenixExceptionHandler');
 
-?>

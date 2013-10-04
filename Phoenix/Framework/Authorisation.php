@@ -21,7 +21,8 @@ class Authorisation
      * Quickly check if the logged-in user has the specified credentials. Implementation
      * of this function depends on the authorisation method used. For example, the role
      * auth method will check to see if the user's role is equal to the one provided.
-     * @param RouteParameters $request
+     * @param string $cred
+     * @return boolean
      */
     static function CheckCredentials($cred)
     {
@@ -343,5 +344,3 @@ class RoleAuthorisation extends AuthorisationMethod
         return $role == $cred;
     }
 }
-
-?>

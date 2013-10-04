@@ -65,5 +65,3 @@ class RouteParameters {
         return trim($this->controller . '/' . $this->action . '/' . implode('/', $this->params), '/');
     }
 }
-
-?>

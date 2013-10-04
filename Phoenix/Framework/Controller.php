@@ -125,5 +125,3 @@ class Controller {
         return $ar;
     }
 }
-
-?>

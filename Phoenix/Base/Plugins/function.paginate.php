@@ -103,5 +103,3 @@ function smarty_function_paginate($params, $template)
     }
     return trim($ret);
 }
-
-?>

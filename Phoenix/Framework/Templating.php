@@ -108,5 +108,3 @@ class Templating
         $master->display($master_page);
     }
 }
-
-?>

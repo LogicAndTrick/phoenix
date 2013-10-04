@@ -166,5 +166,3 @@ class RenderResult extends ActionResult
         $view->display($this->view);
     }
 }
-
-?>

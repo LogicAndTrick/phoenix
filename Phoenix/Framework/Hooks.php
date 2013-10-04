@@ -105,5 +105,3 @@ class SetTemplatingDefaultsRequestHook extends Hook {
         Templating::SetDefaults($request);
     }
 }
-
-?>

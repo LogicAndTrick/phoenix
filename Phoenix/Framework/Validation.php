@@ -422,5 +422,3 @@ class DbUniqueValidation extends ValidationMethod
             . '.';
     }
 }
-
-?>

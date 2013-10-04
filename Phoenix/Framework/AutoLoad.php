@@ -51,5 +51,3 @@ function PhoenixAutoLoad($class_name)
 }
 
 spl_autoload_register('PhoenixAutoLoad');
-
-?>
