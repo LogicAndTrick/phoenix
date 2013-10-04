@@ -3,6 +3,30 @@
 Authentication::RegisterPasswordHasher(new AlgorithmHasher());
 Authentication::RegisterDataExtractor(new StandardAuthenticationDataExtractor());
 
+class AuthenticationMethod
+{
+    public function InterceptRequest() { }
+    public function Login($metadata) { }
+    public function CanLogin($metadata) { }
+    public function Logout() { }
+    public function ClearSession() { }
+}
+
+class FormsAuthentication
+{
+
+}
+
+class OAuth2Authentication
+{
+
+}
+
+class OpenIDAuthentication
+{
+
+}
+
 class Authentication
 {
     public static $user = null;
