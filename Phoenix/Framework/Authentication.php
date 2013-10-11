@@ -5,16 +5,129 @@ Authentication::RegisterDataExtractor(new StandardAuthenticationDataExtractor())
 
 class AuthenticationMethod
 {
-    public function InterceptRequest() { }
-    public function Login($metadata) { }
-    public function CanLogin($metadata) { }
+
+    public function InterceptRequest($config) { }
+
+    public function CanLogin($config) { }
+
+    /**
+     * @param AuthenticationPersistence $store
+     * @param array $config
+     * @return object
+     */
+    public function Login($store, $config) { }
+
     public function Logout() { }
-    public function ClearSession() { }
+}
+
+class SessionAuthentication
+{
+    public function InterceptRequest($config) {
+        return true;
+    }
+
+    public function CanLogin($config) {
+        return Session2::Get($config['session']['id']) !== null;
+    }
+
+    /**
+     * @param AuthenticationPersistence $store
+     * @param array $config
+     * @return object
+     */
+    public function Login($store, $config) {
+        $id = Session2::Get($config['session']['id']);
+        if ($id === null) return false;
+        $user = $store->Fetch(array(
+            $config['model']['id'] => $id
+        ));
+        return $user ? $user : false;
+    }
+}
+
+class CookieAuthentication
+{
+
+    public function InterceptRequest($config) {
+        return $config['cookie']['enabled'];
+    }
+
+    public function CanLogin($config) {
+        return $config['cookie']['enabled']
+            && Cookie::Get($config['cookie']['id']) !== null
+            && Cookie::Get($config['cookie']['code']) !== null;
+    }
+
+    /**
+     * @param AuthenticationPersistence $store
+     * @param array $config
+     * @return object
+     */
+    public function Login($store, $config) {
+        if (!$config['cookie']['enabled']) return false;
+        $id = Cookie::Get($config['cookie']['id']);
+        $code = Cookie::Get($config['cookie']['code']);
+        if ($id === null || $code === null) return false;
+        $user = $store->Fetch(array(
+            $config['model']['id'] => $id,
+            $config['model']['cookie'] => $code,
+        ));
+        if (!$user) {
+            Cookie::Clear($config['cookie']['id']);
+            Cookie::Clear($config['cookie']['code']);
+            return false;
+        }
+        return $user;
+    }
 }
 
 class FormsAuthentication
 {
+    public function InterceptRequest($config) {
+        return $config['post']['login_automatically'];
+    }
 
+    public function CanLogin($config) {
+        return Post::Get($config['post']['username']) != null
+            && Post::Get($config['post']['password']) != null;
+    }
+
+    /**
+     * @param AuthenticationPersistence $store
+     * @param array $config
+     * @return object
+     */
+    public function Login($store, $config) {
+        $username = Post::Get($config['post']['username']);
+        $password = Post::Get($config['post']['password']);
+        if ($username === null || $password === null) return false;
+
+        // Username and email must be unique (password is matched after the user object is found)
+        $user = $store->Fetch(array(
+            $config['model']['username'] => $username
+        ));
+        if (!$user && $config['post']['username_match_email']) {
+            $user = $store->Fetch(array(
+                $config['model']['email'] => $username
+            ));
+        }
+
+        // Match the password using the salt from the database
+        if ($user) {
+            $salt = $store->Get($user, $config['model']['salt']);
+            $hashed = Authentication2::HashPassword($password, $salt);
+            $password = $store->Get($user, $config['model']['password']);
+            if ($hashed != $password) {
+                $user = false;
+            }
+        }
+
+        if (!$user) {
+            Validation::AddError($config['post']['username'], $config['post']['error']);
+            return false;
+        }
+        return $user;
+    }
 }
 
 class OAuth2Authentication
@@ -24,7 +137,304 @@ class OAuth2Authentication
 
 class OpenIDAuthentication
 {
+    /**
+     * @var LightOpenID
+     */
+    private $openid = null;
+    private $valid;
 
+    private function Init($config) {
+        if ($this->openid !== null) return;
+        $this->openid = new LightOpenID($config['openid']['host']);
+        if ($config['openid']['realm'] != null) $this->openid->realm = $config['openid']['realm'];
+        $this->valid = $this->openid->validate();
+    }
+
+    public function InterceptRequest($config) {
+        $this->Init($config);
+        return $this->valid || $config['openid']['login_automatically'];
+    }
+
+    public function CanLogin($config) {
+        $this->Init($config);
+        return $this->valid
+            || Post::Get($config['post']['openid']) != null;
+    }
+
+    /**
+     * @param AuthenticationPersistence $store
+     * @param array $config
+     * @return object
+     */
+    public function Login($store, $config) {
+        if ($this->valid) {
+            return $this->FinishLogin($store, $config);
+        } else if (Post::Get($config['post']['openid']) != null) {
+            return $this->StartLogin($store, $config);
+        }
+        return false;
+    }
+
+    private function StartLogin($store, $config) {
+        $url = Post::Get($config['post']['openid']);
+        $remember = Post::Get($config['post']['remember']);
+        if ($url != null) {
+            Session2::Set($config['openid']['session_remember'], $remember);
+            $this->openid->identity = $url;
+            Headers::Redirect($this->openid->authUrl());
+            exit();
+        }
+        return false;
+    }
+
+    private function FinishLogin($store, $config) {
+        $this->Init($config);
+        if (!$this->openid->mode || !$this->openid->mode != 'cancel' || !$this->valid) return false;
+        $identity = $this->openid->identity;
+        $user = $store->Fetch(array(
+            $config['model']['identity'] => $identity
+        ));
+        return $user ? $user : null;
+    }
+}
+
+class AuthenticationPersistence
+{
+    /**
+     * @param array $fields
+     * @return object
+     */
+    function Fetch($fields) { }
+    function Store($object) { }
+    function Set($object, $key, $value) { }
+    function Get($object, $key) { }
+}
+
+class DatabaseAuthenticationPersistence
+{
+
+}
+
+class Authentication2
+{
+    private static $_methods = array();
+
+    /**
+     * @var AuthenticationPersistence
+     */
+    private static $_persistence = null;
+    private static $_hash = null;
+
+    public static $config = array(
+        'model' => array(
+            'id' => 'ID',
+            'username' => 'Username',
+            'password' => 'Password',
+            'identity' => 'Identity',
+            'salt' => 'Salt',
+            'email' => 'Email',
+            'cookie' => 'Cookie',
+            'num_login' => 'NumLogins',
+            'last_login' => 'LastLogin',
+            'last_access' => 'LastAccess',
+            'last_page' => 'Page',
+            'ip' => 'IP',
+            'unlock' => 'Unlock'
+        ),
+        'session' => array(
+            'id' => 'phoenix_session'
+        ),
+        'cookie' => array(
+            'enabled' => true,
+            'id' => 'phoenix_id',
+            'code' => 'phoenix_code',
+            'timeout' => 30000000
+        ),
+        'post' => array(
+            'username' => 'username',
+            'password' => 'password',
+            'remember' => 'remember',
+            'password_confirm' => 'password_confirm',
+            'email' => 'email',
+            'openid' => 'openid',
+            'login_automatically' => true,
+            'username_match_email' => true,
+            'error' => 'This username and password combination did not match any registered accounts.'
+        ),
+        'openid' => array(
+            'host' => null,
+            'realm' => null,
+            'session_remember' => 'temp_phoenix_authentication_remember',
+            'login_automatically' => true
+        ),
+        'ban' => array(
+            'enabled' => false,
+            'model' => 'Ban',
+            'action' => 'Index',
+            'controller' => 'Banned',
+            'user_id' => 'UserID',
+            'ip' => 'IP',
+            'time' => 'Time',
+            'text' => 'Text'
+        )
+    );
+
+    /**
+     * Merge two arrays recursively. Keys in the second array overwrite keys in the first array.
+     * @param array $array1
+     * @param array $array2
+     * @return array
+     */
+    protected static function MergeArrays($array1, $array2) {
+        $merged = array_merge(array(), $array1); // Copy the array, don't want side effects
+        foreach ($array2 as $key => $value) {
+            if (array_key_exists($key, $merged) && is_array($value) && is_array($merged[$key])) {
+                $merged[$key] = Authentication2::MergeArrays($merged[$key], $value);
+            } else {
+                $merged[$key] = $value;
+            }
+        }
+        return $merged;
+    }
+
+    public static function Configure($config) {
+       Authentication2::$config = Authentication2::MergeArrays(Authentication2::$config, $config);
+    }
+
+    private static $_enabled = false;
+
+    static function AddAuthenticationMethod($method)
+    {
+        Authentication2::$_methods[] = $method;
+    }
+
+    static function SetPersistenceMethod($method)
+    {
+        Authentication2::$_persistence = $method;
+    }
+
+    static function SetPasswordHasher($hasher)
+    {
+        Authentication2::$_hash = $hasher;
+    }
+
+    static function HashPassword($password, $salt = '')
+    {
+        return Authentication2::$_hash->Hash($password, $salt);
+    }
+
+    static function IsLoggedIn()
+    {
+        throw new Exception("Not implemented");
+    }
+
+    static function GetUser()
+    {
+        throw new Exception("Not implemented");
+    }
+
+    static function GetUserID()
+    {
+        throw new Exception("Not implemented");
+    }
+
+    static function GetUserName()
+    {
+        throw new Exception("Not implemented");
+    }
+
+    static function Enable()
+    {
+        if (Authentication2::$_hash == null) throw new Exception("You must set the Authentication hashing function.");
+        if (Authentication2::$_persistence == null) throw new Exception("You must set the persistence method.");
+        if (count(Authentication2::$_methods) == 0) throw new Exception("You must add at least one authentication method.");
+
+        // Make sure the registered classes are configured correctly
+        Authentication2::$_persistence->Validate();
+        foreach (Authentication2::$_methods as $method) $method->Validate();
+
+        Authentication2::$_enabled = true;
+        Authentication2::Login(true);
+    }
+
+    static function Login($intercept = false)
+    {
+        $cfg = Authentication2::$config;
+        $store = Authentication2::$_persistence;
+        $user = false;
+        $successful_method = null;
+        foreach (Authentication2::$_methods as $method) {
+            if ((!$intercept || $method->InterceptRequest($cfg)) && $method->CanLogin($cfg)) {
+                $user = $method->Login($store, $cfg);
+                if ($user) {
+                    $successful_method = $method;
+                    break;
+                }
+            }
+        }
+        if ($user) Authentication2::LoginSuccess($user, $successful_method);
+    }
+
+    static function LoginSuccess($user, $method)
+    {
+        $config = Authentication2::$config;
+        $store = Authentication2::$_persistence;
+        $session = $config['session']['id'];
+        $model = $config['model'];
+
+        Session2::Set($session, $store->Get($user, $model['id']));
+
+        if ($method->CountsAsLogin()) {
+            Session2::Set($session.'_last_login', $store->Get($user, $model['last_access']));
+            $store->Set($user, $model['num_login'], $store->Get($user, $model['num_login']));
+            $store->Set($user, $model['last_login'], gmdate("Y-m-d H:i:s"));
+            $store->Set($user, $model['ip'], $_SERVER['REMOTE_ADDR']);
+
+            if ($config['cookie']['enabled']) {
+                $salt = $store->get($user, $model['salt']) || Authentication2::RandomString();
+                $salt = substr($salt, 0, strlen($salt) / 2); // Don't reveal the entire salt in the cookie, even if we're hashing it beforehand
+                $salt = Authentication2::HashPassword($store->Get($user, $model['username']), $salt . '_Phoenix_Cookie');
+                $cookie = Authentication2::ConstantString($salt);
+                $store->Set($user, $model['cookie'], $cookie);
+                Cookie::Set($config['cookie']['id'], $store->Get($user, $model['id']), $config['cookie']['timeout']);
+                Cookie::Set($config['cookie']['code'], $store->Get($user, $model['cookie']), $config['cookie']['timeout']);
+            }
+        }
+
+        $store->Set($user, $model['last_access'], gmdate("Y-m-d H:i:s"));
+        $store->Set($user, $model['last_page'], array_key_exists('phoenix_route', $_GET) ? $_GET['phoenix_route'] : '');
+
+        $store->Store($user);
+    }
+
+    static function Logout()
+    {
+        $config = Authentication2::$config;
+        if ($config['cookie']['enabled']) {
+            Cookie::Clear($config['cookie']['id']);
+            Cookie::Clear($config['cookie']['code']);
+        }
+        $_SESSION = array();
+        session_destroy();
+    }
+
+    static function RandomString($seed = '')
+    {
+        $seed .= 'Phoenix_Authentication_Random_String';
+        for ($i = 0; $i < 5; $i++) {
+            $seed = hash('sha256', $seed . '_random_' . $i . '_' . mt_rand(0, 500000));
+        }
+        return $seed;
+    }
+
+    static function ConstantString($seed)
+    {
+        $seed .= 'Phoenix_Authentication_Constant_String';
+        for ($i = 0; $i < 5; $i++) {
+            $seed = hash('sha256', $seed . '_constant_' . $i);
+        }
+        return $seed;
+    }
 }
 
 class Authentication
@@ -691,7 +1101,7 @@ class Session
 
 class PasswordHasher
 {
-    public function Hash($password)
+    public function Hash($password, $salt = '')
     {
         // Virtual
     }
@@ -702,9 +1112,9 @@ class PasswordHasher
  */
 class PlainTextHasher extends PasswordHasher
 {
-    public function Hash($password)
+    public function Hash($password, $salt = '')
     {
-        return $password;
+        return $salt.$password;
     }
 }
 
@@ -729,9 +1139,9 @@ class AlgorithmHasher extends PasswordHasher
         $this->salt_after = $salt_after;
     }
 
-    public function Hash($password)
+    public function Hash($password, $salt = '')
     {
-        return hash($this->algorithm, $this->salt_before . $password . $this->salt_after);
+        return hash($this->algorithm, $this->salt_before . $salt . $password . $this->salt_after);
     }
 }
 
