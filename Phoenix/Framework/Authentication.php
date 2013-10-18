@@ -5,7 +5,6 @@ Authentication::RegisterDataExtractor(new StandardAuthenticationDataExtractor())
 
 class AuthenticationMethod
 {
-
     public function InterceptRequest($config) { }
 
     public function CanLogin($config) { }
@@ -18,9 +17,18 @@ class AuthenticationMethod
     public function Login($store, $config) { }
 
     public function Logout() { }
+
+    public function CanRegister($config) { }
+
+    /**
+     * @param AuthenticationPersistence $store
+     * @param array $config
+     * @return object
+     */
+    public function Register($store, $config) { }
 }
 
-class SessionAuthentication
+class SessionAuthentication extends AuthenticationMethod
 {
     public function InterceptRequest($config) {
         return true;
@@ -28,6 +36,10 @@ class SessionAuthentication
 
     public function CanLogin($config) {
         return Session2::Get($config['session']['id']) !== null;
+    }
+
+    public function CanRegister($config) {
+        return false;
     }
 
     /**
@@ -45,7 +57,7 @@ class SessionAuthentication
     }
 }
 
-class CookieAuthentication
+class CookieAuthentication extends AuthenticationMethod
 {
 
     public function InterceptRequest($config) {
@@ -56,6 +68,10 @@ class CookieAuthentication
         return $config['cookie']['enabled']
             && Cookie::Get($config['cookie']['id']) !== null
             && Cookie::Get($config['cookie']['code']) !== null;
+    }
+
+    public function CanRegister($config) {
+        return false;
     }
 
     /**
@@ -81,15 +97,27 @@ class CookieAuthentication
     }
 }
 
-class FormsAuthentication
+class FormsAuthentication extends AuthenticationMethod
 {
     public function InterceptRequest($config) {
-        return $config['post']['login_automatically'];
+        return $config['forms']['login_automatically'];
     }
 
     public function CanLogin($config) {
         return Post::Get($config['post']['username']) != null
             && Post::Get($config['post']['password']) != null;
+    }
+
+    public function CanRegister($config) {
+        if (!Post::IsPostBack()) return false;
+        $username = Post::Get($config['post']['username']);
+        $password = Post::Get($config['post']['password']);
+        $confirm = Post::Get($config['post']['password_confirm']);
+        $email = Post::Get($config['post']['email']);
+        return $username !== null
+            && $password !== null
+            && $confirm !== null
+            && ($email !== null || !$config['forms']['require_email']);
     }
 
     /**
@@ -102,11 +130,16 @@ class FormsAuthentication
         $password = Post::Get($config['post']['password']);
         if ($username === null || $password === null) return false;
 
+        $username = trim(Post::Get($config['post']['username']));
+        if ($username == null || strlen($username) < $config['forms']['minimum_username_length']) {
+            Validation::AddError($config['post']['username'], 'Username must be at least '.$config['forms']['minimum_username_length'].' characters long.');
+        }
+
         // Username and email must be unique (password is matched after the user object is found)
         $user = $store->Fetch(array(
             $config['model']['username'] => $username
         ));
-        if (!$user && $config['post']['username_match_email']) {
+        if (!$user && $config['forms']['username_match_email']) {
             $user = $store->Fetch(array(
                 $config['model']['email'] => $username
             ));
@@ -123,19 +156,98 @@ class FormsAuthentication
         }
 
         if (!$user) {
-            Validation::AddError($config['post']['username'], $config['post']['error']);
+            Validation::AddError($config['post']['username'], $config['forms']['login_error_no_match']);
             return false;
         }
         return $user;
     }
+
+    /**
+     * @param AuthenticationPersistence $store
+     * @param array $config
+     * @return object
+     */
+    public function Register($store, $config) {
+        $username = trim(Post::Get($config['post']['username']));
+        $password = Post::Get($config['post']['password']);
+        $confirm = Post::Get($config['post']['password_confirm']);
+        $email = trim(Post::Get($config['post']['email']));
+
+        $error = false;
+
+        // Validate username
+        $length = $config['forms']['minimum_username_length'];
+        if (strlen($username) < $length) {
+            Validation::AddError($config['post']['username'], str_replace('$length', $length, $config['forms']['register_error_username_required']));
+            $error = true;
+        } else {
+            $username_conflict = $store->Fetch(array(
+                $config['model']['username'] => $username
+            ));
+            if ($username_conflict) {
+                Validation::AddError($config['post']['username'], $config['forms']['register_error_duplicate_username']);
+                $error = true;
+            }
+        }
+
+        // Validate email
+        if ($config['forms']['require_email']) {
+            if (filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+                Validation::AddError($config['post']['email'], $config['forms']['register_error_email_required']);
+                $error = true;
+            } else {
+                $email_conflict = $store->Fetch(array(
+                    $config['model']['email'] => $email
+                ));
+                if ($email_conflict) {
+                    Validation::AddError($config['post']['email'], $config['forms']['register_error_duplicate_email']);
+                    $error = true;
+                }
+            }
+        }
+
+        // Validate password
+        $length = $config['forms']['minimum_password_length'];
+        if (strlen($password) < $length) {
+            Validation::AddError($config['post']['password'], str_replace('$length', $length, $config['forms']['register_error_password_required']));
+            $error = true;
+        } else {
+            if ($password != $confirm) {
+                Validation::AddError($config['post']['password_confirm'], $config['forms']['register_error_password_match']);
+                $error = true;
+            }
+        }
+
+        if ($error) {
+            return false;
+        }
+
+        // Create user
+        $salt = Authentication2::RandomString($username);
+        $password = Authentication2::HashPassword($password, $salt);
+        $fields = array(
+            'method' => 'forms',
+            $config['model']['username'] => $username,
+            $config['model']['password'] => $password,
+            $config['model']['salt'] => $salt
+        );
+
+        if ($config['forms']['require_email']) {
+            $fields[$config['model']['email']] = $email;
+        }
+
+        $user = $store->Create($fields);
+
+        return $user;
+    }
 }
 
-class OAuth2Authentication
+class OAuth2Authentication extends AuthenticationMethod
 {
 
 }
 
-class OpenIDAuthentication
+class OpenIDAuthentication extends AuthenticationMethod
 {
     /**
      * @var LightOpenID
@@ -204,6 +316,11 @@ class AuthenticationPersistence
      * @param array $fields
      * @return object
      */
+    function Create($fields) { }
+    /**
+     * @param array $fields
+     * @return object
+     */
     function Fetch($fields) { }
     function Store($object) { }
     function Set($object, $key, $value) { }
@@ -256,10 +373,16 @@ class Authentication2
             'remember' => 'remember',
             'password_confirm' => 'password_confirm',
             'email' => 'email',
-            'openid' => 'openid',
-            'login_automatically' => true,
+            'openid' => 'openid'
+        ),
+        'forms' => array(
+            'minimum_username_length' => 6,
             'username_match_email' => true,
-            'error' => 'This username and password combination did not match any registered accounts.'
+            'login_automatically' => true,
+            'require_email' => true,
+            'login_error_no_match' => 'This username and password combination did not match any registered accounts.',
+            'register_error_duplicate_username' => 'This username is already in use, please choose another.',
+            'register_error_duplicate_email' => 'This email is already in use. Did you forget your password?'
         ),
         'openid' => array(
             'host' => null,
@@ -297,7 +420,8 @@ class Authentication2
         return $merged;
     }
 
-    public static function Configure($config) {
+    public static function Configure($config)
+    {
        Authentication2::$config = Authentication2::MergeArrays(Authentication2::$config, $config);
     }
 
@@ -373,6 +497,7 @@ class Authentication2
             }
         }
         if ($user) Authentication2::LoginSuccess($user, $successful_method);
+        else Authentication2::LoginFailure();
     }
 
     static function LoginSuccess($user, $method)
@@ -407,6 +532,11 @@ class Authentication2
         $store->Store($user);
     }
 
+    static function LoginFailure()
+    {
+
+    }
+
     static function Logout()
     {
         $config = Authentication2::$config;
@@ -416,6 +546,35 @@ class Authentication2
         }
         $_SESSION = array();
         session_destroy();
+    }
+
+    static function RegisterUser()
+    {
+        $cfg = Authentication2::$config;
+        $store = Authentication2::$_persistence;
+        $user = false;
+        $successful_method = null;
+        foreach (Authentication2::$_methods as $method) {
+            if ($method->CanRegister($cfg)) {
+                $user = $method->Register($store, $cfg);
+                if ($user) {
+                    $successful_method = $method;
+                    break;
+                }
+            }
+        }
+        if ($user) Authentication2::RegisterSuccess($user, $successful_method);
+        return $user;
+    }
+
+    static function RegisterSuccess($user, $method)
+    {
+        $config = Authentication2::$config;
+        Authentication2::$_persistence->Set($user, $config['model']['num_login'], 0);
+        Authentication2::$_persistence->Set($user, $config['model']['unlock'], Authentication2::RandomString());
+        Authentication2::$_persistence->Store($user);
+        // Send verification email
+        return $user;
     }
 
     static function RandomString($seed = '')
